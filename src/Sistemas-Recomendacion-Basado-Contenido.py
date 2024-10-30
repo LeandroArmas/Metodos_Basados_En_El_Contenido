@@ -86,22 +86,27 @@ def calculate_cosine_similarities(tf_idf_docs):
             cos_sim_matrix[i][j] = cos_sim_matrix[j][i] = cosine_similarity(tf_idf_docs[i], tf_idf_docs[j])
     return cos_sim_matrix
 
-# Escribe los resultados TF-IDF y la matriz de similitud coseno en un archivo
-def write_results_to_file(terms, tf_idf_docs, cos_sim_matrix, output_file):
+def write_results_to_file(documents, tf_idf_docs, cos_sim_matrix, idf, output_file):
     with open(output_file, 'w') as f:
-        # Escribir TF-IDF de cada documento
+        # Para cada documento, escribe los valores de TF, IDF y TF-IDF para cada término
         for doc_idx, tf_idf in enumerate(tf_idf_docs):
             f.write(f"\nDocument {doc_idx + 1}:\n")
-            f.write(f"{'Index':<10}{'Term':<15}{'TF-IDF':<10}\n")
-            for idx, (term, tfidf_val) in enumerate(tf_idf.items()):
-                f.write(f"{idx:<10}{term:<15}{tfidf_val:<10.4f}\n")
-
-        # Escribir la matriz de similaridades coseno
+            f.write(f"{'Index':<10}{'Term':<15}{'TF':<10}{'IDF':<10}{'TF-IDF':<10}\n")  # Cabecera de columnas
+            
+            # Calcular TF para el documento actual
+            tf = calculate_tf(documents[doc_idx])
+            
+            # Escribir cada término con su índice, TF, IDF y valor TF-IDF
+            for idx, term in enumerate(tf_idf.keys()):
+                tf_val = tf[term]            # Valor TF del término en el documento
+                idf_val = idf[term]          # Valor IDF del término en el corpus
+                tfidf_val = tf_idf[term]     # Valor TF-IDF del término en el documento
+                f.write(f"{idx:<10}{term:<15}{tf_val:<10.4f}{idf_val:<10.4f}{tfidf_val:<10.4f}\n")
+        
+        # Escribir la matriz de similitud coseno entre documentos
         f.write("\nCosine Similarities between documents:\n")
         for i, row in enumerate(cos_sim_matrix):
-            # Redondear el valor antes de escribir y mostrar 4 decimales
-            formatted_row = [f"{val:.4f}" for val in row]  # Usar f-strings para formateo
-            f.write(f"Doc {i + 1}: {formatted_row}\n")
+            f.write(f"Doc {i+1}: {row}\n")
 
 def plot_similarity_matrix(cos_sim_matrix, output_file):
     # Crear un gráfico de calor (heatmap) para la matriz de similaridad
@@ -139,7 +144,7 @@ def main():
     cos_sim_matrix = calculate_cosine_similarities(tf_idf_docs)
 
     # Escribe resultados en el archivo de salida
-    write_results_to_file(list(idf.keys()), tf_idf_docs, cos_sim_matrix, args.output)
+    write_results_to_file(documents, tf_idf_docs, cos_sim_matrix, idf, args.output)
     
     # Llamar a la función para crear el gráfico
     plot_similarity_matrix(cos_sim_matrix, args.graph)

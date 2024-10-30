@@ -7,6 +7,24 @@ from collections import Counter, defaultdict  # Utilidades para conteo y diccion
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Clase para almacenar información de cada término de un documento
+class DocumentTermInfo:
+    def __init__(self, term_index, term, tf, idf, tf_idf):
+        self.term_index = term_index  # Índice del término
+        self.term = term                # Término
+        self.tf = tf                    # TF
+        self.idf = idf                  # IDF
+        self.tf_idf = tf_idf            # TF-IDF
+
+# Clase para almacenar información de cada documento
+class DocumentInfo:
+    def __init__(self, doc_index):
+        self.doc_index = doc_index      # Índice del documento
+        self.terms_info = []             # Lista de DocumentTermInfo para este documento
+
+    def add_term_info(self, term_info):
+        self.terms_info.append(term_info)  # Añadir información del término a la lista
+
 # Carga el archivo de palabras de parada y las convierte en un conjunto
 def load_stop_words(stop_file):
     with open(stop_file, 'r') as f:
@@ -36,77 +54,93 @@ def load_documents(doc_file, stop_words, lemmatization_dict):
 
 # Calcula la frecuencia de término (TF) para un documento
 def calculate_tf(doc):
-    term_counts = Counter(doc)  # Cuenta ocurrencias de cada término en el documento
-    total_terms = len(doc)  # Calcula el número total de términos en el documento
-    # Devuelve la frecuencia de cada término dividiendo por el total de términos
-    return {term: count / total_terms for term, count in term_counts.items()}
+    term_counts = Counter(doc)  # Cuenta las ocurrencias de cada término en el documento
+    total_terms = len(doc)       # Total de términos en el documento
+    tf = {}
+    # Crear un diccionario ordenado por el primer índice de aparición
+    for term in doc:
+        count = term_counts[term]
+        if count > 0:
+            # Aplica la fórmula TF = 1 + log10(frecuencia del término)
+            tf[term] = 1 + math.log10(count)
+    return tf
 
 # Calcula la frecuencia inversa de documento (IDF) para todos los documentos
 def calculate_idf(documents):
-    idf = defaultdict(int)  # Diccionario para contar en cuántos documentos aparece cada término
-    num_docs = len(documents)  # Número total de documentos
+    idf = {}
+    num_docs = len(documents)
+    
+    # Inicializamos el contador de documentos que contienen cada término
+    term_doc_count = defaultdict(int)
+    
+    # Contamos cuántos documentos contienen cada término
     for doc in documents:
-        unique_terms = set(doc)  # Obtiene términos únicos en el documento
+        unique_terms = set(doc)  # Términos únicos en el documento
         for term in unique_terms:
-            idf[term] += 1  # Incrementa el conteo de documentos para cada término
-    # Calcula IDF para cada término usando el logaritmo de (num_docs / (1 + count))
-    return {term: math.log(num_docs / (1 + count)) for term, count in idf.items()}
+            term_doc_count[term] += 1
+            
+    # Calculamos IDF usando el inverso logarítmico de la frecuencia del documento
+    for term, count in term_doc_count.items():
+        if count > 0:  # Aseguramos que no estamos dividiendo por cero
+            idf[term] = math.log(num_docs / count)
+        else:
+            idf[term] = 0  # Valor por defecto si el término no aparece en ningún documento
+
+    return idf
 
 # Calcula TF-IDF para todos los documentos
 def calculate_tf_idf(documents):
     tf_idf_docs = []
-    idf = calculate_idf(documents)  # Calcula IDF de todos los documentos
+    idf = calculate_idf(documents)
     for doc in documents:
-        tf = calculate_tf(doc)  # Calcula TF para el documento actual
-        # Calcula TF-IDF multiplicando TF por IDF para cada término
+        tf = calculate_tf(doc)
         tf_idf = {term: tf_val * idf[term] for term, tf_val in tf.items()}
-        tf_idf_docs.append(tf_idf)  # Añade el resultado TF-IDF del documento a la lista
+        tf_idf_docs.append(tf_idf)
     return tf_idf_docs, idf
 
-# Calcula la similitud coseno entre dos documentos
-def cosine_similarity(doc1, doc2):
-    # Encuentra términos comunes en ambos documentos
-    common_terms = set(doc1.keys()).intersection(set(doc2.keys()))
-    # Calcula el numerador sumando el producto de TF-IDF para los términos comunes
-    numerator = sum(doc1[term] * doc2[term] for term in common_terms)
-    # Calcula el denominador usando las magnitudes de los vectores TF-IDF
-    sum1 = sum(val ** 2 for val in doc1.values())
-    sum2 = sum(val ** 2 for val in doc2.values())
-    denominator = math.sqrt(sum1) * math.sqrt(sum2)
-    # Devuelve la similitud coseno o 0 si el denominador es 0
-    return numerator / denominator if denominator != 0 else 0
+def calculate_vector_length(vector):
+    """Calcula la longitud del vector usando la raíz cuadrada de la suma de los cuadrados de los valores."""
+    return math.sqrt(sum(value ** 2 for value in vector.values()))
 
-# Calcula la matriz de similitud coseno para todos los documentos
+def normalize_vector(vector):
+    """Normaliza el vector dividiendo cada valor por la longitud del vector."""
+    length = calculate_vector_length(vector)
+    if length == 0:
+        return vector  # Evita la división por cero
+    return {term: value / length for term, value in vector.items()}
+
+def calculate_cosine_similarity(normalized_vec1, normalized_vec2):
+    """Calcula la similaridad del coseno entre dos vectores normalizados."""
+    common_terms = set(normalized_vec1.keys()).intersection(set(normalized_vec2.keys()))
+    return sum(normalized_vec1[term] * normalized_vec2[term] for term in common_terms)
+
 def calculate_cosine_similarities(tf_idf_docs):
+    """Calcula la matriz de similaridad del coseno entre todos los documentos."""
     num_docs = len(tf_idf_docs)
-    # Inicializa una matriz de ceros para almacenar similitudes
     cos_sim_matrix = [[0] * num_docs for _ in range(num_docs)]
+    
+    # Normalizar los vectores de TF-IDF
+    normalized_docs = [normalize_vector(tf_idf) for tf_idf in tf_idf_docs]
+    
     for i in range(num_docs):
-        for j in range(i, num_docs):  # Solo calcula la mitad superior de la matriz (simétrica)
-            cos_sim_matrix[i][j] = cos_sim_matrix[j][i] = cosine_similarity(tf_idf_docs[i], tf_idf_docs[j])
+        for j in range(i, num_docs):
+            cos_sim_matrix[i][j] = cos_sim_matrix[j][i] = calculate_cosine_similarity(normalized_docs[i], normalized_docs[j])
+    
     return cos_sim_matrix
 
-def write_results_to_file(documents, tf_idf_docs, cos_sim_matrix, idf, output_file):
+def write_results_to_file(tf_idf_docs, cos_sim_matrix, output_file, documents_info):
     with open(output_file, 'w') as f:
-        # Para cada documento, escribe los valores de TF, IDF y TF-IDF para cada término
-        for doc_idx, tf_idf in enumerate(tf_idf_docs):
-            f.write(f"\nDocument {doc_idx + 1}:\n")
-            f.write(f"{'Index':<10}{'Term':<15}{'TF':<10}{'IDF':<10}{'TF-IDF':<10}\n")  # Cabecera de columnas
-            
-            # Calcular TF para el documento actual
-            tf = calculate_tf(documents[doc_idx])
-            
-            # Escribir cada término con su índice, TF, IDF y valor TF-IDF
-            for idx, term in enumerate(tf_idf.keys()):
-                tf_val = tf[term]            # Valor TF del término en el documento
-                idf_val = idf[term]          # Valor IDF del término en el corpus
-                tfidf_val = tf_idf[term]     # Valor TF-IDF del término en el documento
-                f.write(f"{idx:<10}{term:<15}{tf_val:<10.4f}{idf_val:<10.4f}{tfidf_val:<10.4f}\n")
-        
-        # Escribir la matriz de similitud coseno entre documentos
-        f.write("\nCosine Similarities between documents:\n")
+        for doc_info in documents_info:
+            f.write(f"Documento {doc_info.doc_index}:\n")
+            f.write(f"{'Index':<10}{'Term':<15}{'TF':<10}{'IDF':<10}{'TF-IDF':<10}\n")
+            for term_info in doc_info.terms_info:  # Cambiado a terms_info
+                f.write(f"{term_info.term_index:<10}{term_info.term:<15}{term_info.tf:<10.4f}{term_info.idf:<10.4f}{term_info.tf_idf:<10.4f}\n")
+            f.write("\n")  # Espacio entre documentos
+
+        # Escribir la matriz de similitudes coseno
+        f.write("Similitudes coseno entre documentos:\n")
         for i, row in enumerate(cos_sim_matrix):
-            f.write(f"Doc {i+1}: {row}\n")
+            f.write(f"Doc {i + 1}: " + ", ".join(f"{val:<6.4f}" for val in row) + "\n")  # Formatear a 4 decimales
 
 def plot_similarity_matrix(cos_sim_matrix, output_file):
     # Crear un gráfico de calor (heatmap) para la matriz de similaridad
@@ -124,7 +158,6 @@ def plot_similarity_matrix(cos_sim_matrix, output_file):
     plt.savefig(output_file)
     plt.show()
 
-
 # Función principal para la interfaz de línea de comandos
 def main():
     # Define los argumentos de línea de comandos
@@ -140,15 +173,36 @@ def main():
     stop_words = load_stop_words(args.stopwords)
     lemmatization_dict = load_lemmatization(args.lemmatization)
     documents = load_documents(args.documents, stop_words, lemmatization_dict)
+    
+    # Calcular TF-IDF
     tf_idf_docs, idf = calculate_tf_idf(documents)
+    
+    # Crear la lista de DocumentInfo para cada documento
+    documents_info = []
+    for doc_idx, doc in enumerate(documents):
+        tf = calculate_tf(doc)  # Calcula TF
+        if doc_idx < len(tf_idf_docs):  # Asegúrate de que doc_idx esté dentro de los límites
+            for idx, term in enumerate(doc):  # Mantiene el orden de aparición de los términos en el documento
+                tf_val = tf.get(term, 0)  # Obtener valor de TF o 0 si no existe
+                idf_val = idf.get(term, 0)  # Obtener valor de IDF o 0 si no existe
+                
+                # Acceder a la tupla de TF-IDF correctamente
+                tfidf_val = tf_idf_docs[doc_idx].get(term, 0)  # Obtener valor de TF-IDF o 0 si no existe
+                
+                # Crear un objeto DocumentTermInfo y añadirlo al DocumentInfo correspondiente
+                term_info = DocumentTermInfo(term_index=idx, term=term, tf=tf_val, idf=idf_val, tf_idf=tfidf_val)
+                if doc_idx >= len(documents_info):
+                    documents_info.append(DocumentInfo(doc_index=doc_idx + 1))  # Doc index es 1-based
+                documents_info[doc_idx].add_term_info(term_info)
+    
+    # Calcular la matriz de similitudes coseno
     cos_sim_matrix = calculate_cosine_similarities(tf_idf_docs)
 
-    # Escribe resultados en el archivo de salida
-    write_results_to_file(documents, tf_idf_docs, cos_sim_matrix, idf, args.output)
-    
-    # Llamar a la función para crear el gráfico
+    # Escribir la información de los documentos en el archivo de salida
+    write_results_to_file(tf_idf_docs, cos_sim_matrix, args.output, documents_info)
+
+    # Graficar la matriz de similitud
     plot_similarity_matrix(cos_sim_matrix, args.graph)
 
-# Ejecuta el programa
 if __name__ == "__main__":
     main()

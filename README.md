@@ -1,0 +1,1 @@
+python3 src/Sistemas-Recomendacion-Basado-Contenido.py -d data/examples-documents/documents-01.txt -s data/stop-words/stop-words-en.txt -l data/corpus/corpus-en.txt -o resultado.txt

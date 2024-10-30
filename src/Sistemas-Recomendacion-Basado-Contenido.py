@@ -4,6 +4,9 @@ import math      # Proporciona funciones matemáticas como logaritmos y raíces 
 import re        # Librería de expresiones regulares para manipulación de texto
 from collections import Counter, defaultdict  # Utilidades para conteo y diccionarios con valores por defecto
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 # Carga el archivo de palabras de parada y las convierte en un conjunto
 def load_stop_words(stop_file):
     with open(stop_file, 'r') as f:
@@ -100,6 +103,23 @@ def write_results_to_file(terms, tf_idf_docs, cos_sim_matrix, output_file):
             formatted_row = [f"{val:.4f}" for val in row]  # Usar f-strings para formateo
             f.write(f"Doc {i + 1}: {formatted_row}\n")
 
+def plot_similarity_matrix(cos_sim_matrix, output_file):
+    # Crear un gráfico de calor (heatmap) para la matriz de similaridad
+    plt.figure(figsize=(10, 8))
+    
+    # Configurar el gráfico de calor
+    sns.heatmap(cos_sim_matrix, annot=True, fmt=".1f", cmap='coolwarm', square=True,
+                cbar_kws={"shrink": .8}, 
+                xticklabels=[f"Doc {i+1}" for i in range(len(cos_sim_matrix))],
+                yticklabels=[f"Doc {i+1}" for i in range(len(cos_sim_matrix))])
+    
+    plt.title('Cosine Similarity Matrix')
+    plt.xlabel('Documents')
+    plt.ylabel('Documents')
+    plt.savefig(output_file)
+    plt.show()
+
+
 # Función principal para la interfaz de línea de comandos
 def main():
     # Define los argumentos de línea de comandos
@@ -108,6 +128,7 @@ def main():
     parser.add_argument("-s", "--stopwords", required=True, help="Path to the stopwords file (.txt)")
     parser.add_argument("-l", "--lemmatization", required=True, help="Path to the lemmatization file (.json)")
     parser.add_argument("-o", "--output", required=True, help="Path to the output file where results will be saved")
+    parser.add_argument("-g", "--graph", required=True, help="Path to the output file for the similarity matrix graph")
     args = parser.parse_args()
 
     # Carga archivos y calcula TF-IDF y similitudes
@@ -119,6 +140,9 @@ def main():
 
     # Escribe resultados en el archivo de salida
     write_results_to_file(list(idf.keys()), tf_idf_docs, cos_sim_matrix, args.output)
+    
+    # Llamar a la función para crear el gráfico
+    plot_similarity_matrix(cos_sim_matrix, args.graph)
 
 # Ejecuta el programa
 if __name__ == "__main__":

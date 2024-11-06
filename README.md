@@ -11,13 +11,13 @@ Este proyecto implementa un sistema de recomendación basado en contenido que ut
 
 Este proyecto requiere Python 3 y las siguientes librerías:
 
-- `argparse`
-- `json`
-- `math`
-- `re`
-- `collections`
-- `matplotlib`
-- `seaborn`
+- `argparse` Permite crear una interfaz de línea de comandos
+- `json` Permite manejar archivos JSON para cargar el archivo de lematización
+- `math` Proporciona funciones matemáticas como logaritmos y raíces cuadradas
+- `re` Librería de expresiones regulares para manipulación de texto
+- `collections` Utilidades para conteo y diccionarios con valores por defecto
+- `matplotlib` Librería para graficar
+- `seaborn` Librería para gráficos estadísticos
 
 Puedes instalar las dependencias adicionales ejecutando:
 

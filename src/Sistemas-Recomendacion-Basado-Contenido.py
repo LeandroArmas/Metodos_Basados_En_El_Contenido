@@ -4,8 +4,8 @@ import math      # Proporciona funciones matemáticas como logaritmos y raíces 
 import re        # Librería de expresiones regulares para manipulación de texto
 from collections import Counter, defaultdict  # Utilidades para conteo y diccionarios con valores por defecto
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.pyplot as plt  # Librería para graficar
+import seaborn as sns            # Librería para gráficos estadísticos
 
 # Clase para almacenar información de cada término de un documento
 class DocumentTermInfo:
